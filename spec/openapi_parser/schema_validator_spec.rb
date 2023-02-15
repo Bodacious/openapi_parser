@@ -208,6 +208,18 @@ RSpec.describe OpenAPIParser::SchemaValidator do
           end
         end
       end
+
+      context 'unspecified_type' do
+        it do
+          expect(request_operation.validate_request_body(content_type, { 'unspecified_type' => "foo" })).
+            to eq({ 'unspecified_type' => "foo" })
+        end
+
+        it do
+          expect(request_operation.validate_request_body(content_type, { 'unspecified_type' => [1, 2] })).
+            to eq({ 'unspecified_type' => [1, 2] })
+        end
+      end
     end
 
     describe 'object' do
@@ -285,6 +297,20 @@ RSpec.describe OpenAPIParser::SchemaValidator do
           end
         end
       end
+
+      context 'enum boolean' do
+        it 'include enum' do
+          expect(request_operation.validate_request_body(content_type, { 'enum_boolean' => true })).
+            to eq({ 'enum_boolean' => true })
+        end
+
+        it 'not include enum' do
+          expect { request_operation.validate_request_body(content_type, { 'enum_boolean' => false }) }.to raise_error do |e|
+            expect(e.kind_of?(OpenAPIParser::NotEnumInclude)).to eq true
+            expect(e.message.start_with?("false isn't part of the enum")).to eq true
+          end
+        end
+      end
     end
 
     describe 'all_of' do
@@ -354,16 +380,16 @@ RSpec.describe OpenAPIParser::SchemaValidator do
           }
         end
         let(:params) { correct_params }
-  
+
         it { expect(subject).not_to eq nil }
-  
+
         context 'no schema matched' do
           let(:params) do
             {
               'integer_1' => 42,
             }
           end
-  
+
           it do
             expect { subject }.to raise_error do |e|
               expect(e.kind_of?(OpenAPIParser::NotOneOf)).to eq true
@@ -371,7 +397,7 @@ RSpec.describe OpenAPIParser::SchemaValidator do
             end
           end
         end
-  
+
         context 'multiple schema matched' do
           let(:params) do
             {
@@ -380,14 +406,14 @@ RSpec.describe OpenAPIParser::SchemaValidator do
               'string_1' => 'string_1',
             }
           end
-  
+
           it do
             expect { subject }.to raise_error do |e|
               expect(e.kind_of?(OpenAPIParser::NotOneOf)).to eq true
               expect(e.message.include?("isn't one of")).to eq true
             end
           end
-        end  
+        end
       end
 
       context 'with discriminator' do
@@ -397,11 +423,11 @@ RSpec.describe OpenAPIParser::SchemaValidator do
           {
             'objType' => 'obj1',
             'name' => 'name',
-            'integer_1' => 42,  
+            'integer_1' => 42,
           }
         end
         let(:params) { correct_params }
-  
+
         it { expect(subject).not_to eq nil }
       end
     end
@@ -410,20 +436,6 @@ RSpec.describe OpenAPIParser::SchemaValidator do
       expect { request_operation.validate_request_body(content_type, { 'unknown' => 1 }) }.to raise_error do |e|
         expect(e).to be_kind_of(OpenAPIParser::NotExistPropertyDefinition)
         expect(e.message).to end_with("does not define properties: unknown")
-      end
-    end
-
-    describe 'invalid type' do
-      let(:root) { OpenAPIParser.parse(invalid_schema, config) }
-      let(:invalid_schema) do
-        data = normal_schema
-        data['paths']['/validate']['post']['requestBody']['content']['application/json']['schema'].delete 'type'
-        data
-      end
-
-      it do
-        params = { 'string' => 'str' }
-        expect { request_operation.validate_request_body(content_type, params) }.to raise_error(OpenAPIParser::ValidateError)
       end
     end
   end
@@ -521,6 +533,28 @@ RSpec.describe OpenAPIParser::SchemaValidator do
 
         it do
           expect { subject }.to raise_error(OpenAPIParser::ValidateError)
+        end
+      end
+
+      context 'anyOf' do
+        where(:before_value, :result_value) do
+          [
+            [true, true],
+            ['true', true],
+            ['3.5', 3.5],
+            [3.5, 3.5],
+            [10, 10],
+            ['10', 10],
+            %w[pineapple pineapple]
+          ]
+        end
+
+        with_them do
+          let(:params) { { 'any_of' => before_value } }
+          it do
+            expect(subject).to eq({ 'any_of' => result_value })
+            expect(params['any_of']).to eq result_value
+          end
         end
       end
     end
@@ -735,7 +769,7 @@ RSpec.describe OpenAPIParser::SchemaValidator do
       context 'invalid datetime raise validation error' do
         let(:params) { { 'datetime_string' => 'honoka' } }
 
-        it { expect { subject }.to raise_error(OpenAPIParser::ValidateError) }
+        it { expect { subject }.to raise_error(OpenAPIParser::InvalidDateTimeFormat) }
       end
 
       context "don't change object type" do
@@ -770,6 +804,36 @@ RSpec.describe OpenAPIParser::SchemaValidator do
         end
       end
     end
+
+    context 'anyOf' do
+      let(:key) { 'any_of' }
+
+      context 'coerces valid values for any_of param' do
+        where(:before_value, :result_value) do
+          [
+            ['true', true],
+            ['3.5', 3.5],
+            ['10', 10]
+          ]
+        end
+
+        with_them do
+          let(:value) { before_value }
+          it do
+            expect(subject).to eq({ key.to_s => result_value })
+            expect(params[key]).to eq result_value
+          end
+        end
+      end
+
+      context 'invalid values' do
+        let(:value) { 'pineapple' }
+
+        it do
+          expect { subject }.to raise_error(OpenAPIParser::NotAnyOf)
+        end
+      end
+    end
   end
 
   describe 'coerce path parameter' do
@@ -778,10 +842,10 @@ RSpec.describe OpenAPIParser::SchemaValidator do
     let(:content_type) { 'application/json' }
     let(:request_operation) { root.request_operation(http_method, request_path) }
     let(:http_method) { :get }
-    let(:request_path) { '/coerce_path_params/1' }
     let(:config) { { coerce_value: true } }
 
-    context 'correct' do
+    context 'correct in operation object' do
+      let(:request_path) { '/coerce_path_params/1' }
       it do
         expect(request_operation.path_params).to eq({ 'integer' => '1' })
 
@@ -789,6 +853,46 @@ RSpec.describe OpenAPIParser::SchemaValidator do
 
         expect(request_operation.path_params).to eq({ 'integer' => 1 })
       end
+    end
+
+    context 'correct in path item object' do
+      let(:request_path) { '/coerce_path_params_in_path_item/1' }
+      it do
+        expect(request_operation.path_params).to eq({ 'integer' => '1' })
+
+        subject
+
+        expect(request_operation.path_params).to eq({ 'integer' => 1 })
+      end
+    end
+  end
+
+  describe 'coerce query parameter' do
+    subject { request_operation.validate_request_parameter(params, headers) }
+
+    let(:root) { OpenAPIParser.parse(normal_schema, config) }
+    let(:content_type) { 'application/json' }
+
+    let(:http_method) { :get }
+    let(:request_path) { '/coerce_query_prams_in_operation_and_path_item' }
+    let(:request_operation) { root.request_operation(http_method, request_path) }
+    let(:params) { {} }
+    let(:headers) { {} }
+    let(:config) { { coerce_value: true } }
+
+    context 'correct in all params' do
+      let(:params) { {'operation_integer' => '1', 'path_item_integer' => '2'} }
+      let(:correct) { {'operation_integer' => 1, 'path_item_integer' => 2} }
+      it { expect(subject).to eq(correct) }
+    end
+
+    context 'invalid operation integer only' do
+      let(:params) { {'operation_integer' => '1'} }
+      it { expect{subject}.to raise_error(OpenAPIParser::NotExistRequiredKey) }
+    end
+    context 'invalid path_item integer only' do
+      let(:params) { {'path_item_integer' => '2'} }
+      it { expect{subject}.to raise_error(OpenAPIParser::NotExistRequiredKey) }
     end
   end
 

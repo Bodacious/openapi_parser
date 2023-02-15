@@ -43,13 +43,16 @@ module OpenAPIParser
     def load_uri(uri, config:, schema_registry:)
       # Open-uri doesn't open file scheme uri, so we try to open file path directly
       # File scheme uri which points to a remote file is not supported.
+      uri_path = uri.path
+      raise "file not found" if uri_path.nil?
+
       content = if uri.scheme == 'file'
-        open(uri.path, &:read)
-      else
-        uri.open(&:read)
+        open(uri_path)&.read
+      elsif uri.is_a?(OpenURI::OpenRead)
+        uri.open()&.read
       end
 
-      extension = Pathname.new(uri.path).extname
+      extension = Pathname.new(uri_path).extname
       load_hash(parse_file(content, extension), config: config, uri: uri, schema_registry: schema_registry)
     end
 
@@ -61,8 +64,8 @@ module OpenAPIParser
         URI.join("file:///",  path.to_s)
       end
 
-      def parse_file(content, extension)
-        case extension.downcase
+      def parse_file(content, ext)
+        case ext.downcase
         when '.yaml', '.yml'
           parse_yaml(content)
         when '.json'
@@ -85,13 +88,19 @@ module OpenAPIParser
       end
 
       def parse_json(content)
+        raise "json content is nil" unless content 
         JSON.parse(content)
       end
 
       def load_hash(hash, config:, uri:, schema_registry:)
         root = Schemas::OpenAPI.new(hash, config, uri: uri, schema_registry: schema_registry)
 
-        OpenAPIParser::ReferenceExpander.expand(root) if config.expand_reference
+        OpenAPIParser::ReferenceExpander.expand(root, config.strict_reference_validation) if config.expand_reference
+
+        # TODO: use callbacks
+        root.paths&.path&.values&.each do | path_item |
+          path_item.set_path_item_to_operation
+        end
 
         root
       end

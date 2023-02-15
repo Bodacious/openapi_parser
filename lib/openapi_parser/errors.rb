@@ -5,6 +5,12 @@ module OpenAPIParser
     end
   end
 
+  class MissingReferenceError < OpenAPIError
+    def message
+      "'#{@reference}' was referenced but could not be found"
+    end
+  end
+
   class ValidateError < OpenAPIError
     def initialize(data, type, reference)
       super(reference)
@@ -186,6 +192,28 @@ module OpenAPIParser
 
     def message
       "#{@reference} Value: #{@value.inspect} is not conformant with UUID format"
+    end
+  end
+
+  class InvalidDateFormat < OpenAPIError
+    def initialize(value, reference)
+      super(reference)
+      @value = value
+    end
+
+    def message
+      "#{@reference} Value: #{@value.inspect} is not conformant with date format"
+    end
+  end
+
+  class InvalidDateTimeFormat < OpenAPIError
+    def initialize(value, reference)
+      super(reference)
+      @value = value
+    end
+
+    def message
+      "#{@reference} Value: #{@value.inspect} is not conformant with date-time format"
     end
   end
 

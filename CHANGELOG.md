@@ -1,5 +1,35 @@
 ## Unreleased
 
+## 1.0.0 (2021-02-03)
+### Added
+* Add date-time format validation #126
+
+## 1.0.0.beta1 (2021-12-15)
+### Added
+* Add strict_reference_validation config and implementation to address/implement #29 #123
+
+## 0.15.0 (2021-09-27)
+### Added
+* support: relative file path escape. #117
+
+## 0.14.1 (2021-07-9)
+### Fixed
+* Fix bug for using path parameter and coerce option #115
+
+## 0.14.0 (2021-05-24)
+
+### Added
+* Add basic polymorphism handling #103
+* Support empty schema as any type #109
+* Add date format validation for string #102
+
+### Fixed
+* Fix anyOf coercion to float and integer when value is a non-string type #110
+
+## 0.13.0 (2021-05-01)
+* Fix a problem with remote reference to path items which have path parameters #95
+* Support enum for booleans. #104
+
 ## 0.12.1 (2020-08-27)
 * Use CGI.unescape (warning fix) #92
 

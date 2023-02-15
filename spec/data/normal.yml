@@ -133,6 +133,15 @@ paths:
           required: false
           schema:
             "$ref": '#/components/schemas/nested_array'
+        - name: any_of
+          in: query
+          description: coercing to any of types
+          required: false
+          schema:
+            anyOf:
+              - type: integer
+              - type: number
+              - type: boolean
       responses:
         '200':
           description: success
@@ -150,6 +159,12 @@ paths:
             schema:
               type: object
               properties:
+                any_of:
+                  anyOf:
+                    - type: number
+                    - type: integer
+                    - type: boolean
+                    - type: string
                 nested_array:
                   "$ref": '#/components/schemas/nested_array'
       responses:
@@ -299,6 +314,7 @@ paths:
                     anyOf:
                       - type: string
                       - type: boolean
+                unspecified_type: {}
                 enum_string:
                   type: string
                   enum:
@@ -314,6 +330,10 @@ paths:
                   enum:
                     - 1.0
                     - 2.1
+                enum_boolean:
+                  type: boolean
+                  enum:
+                    - true
 
       responses:
         '200':
@@ -489,7 +509,37 @@ paths:
       responses:
         '204':
           description: no content
+  /coerce_query_prams_in_operation_and_path_item:
+    parameters:
+      - name: path_item_integer
+        in: query
+        required: true
+        schema:
+          type: integer
+    get:
+      parameters:
+      - name: operation_integer
+        in: query
+        required: true
+        schema:
+          type: integer
+      description: get characters
+      responses:
+        '204':
+          description: no content
   /coerce_path_params/{integer}:
+    parameters:
+      - name: integer
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      description: get characters
+      responses:
+        '204':
+          description: no content
+  /coerce_path_params_in_path_item/{integer}:
     get:
       description: get characters
       parameters:

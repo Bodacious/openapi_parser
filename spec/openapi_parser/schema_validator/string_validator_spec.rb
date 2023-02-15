@@ -194,4 +194,103 @@ RSpec.describe OpenAPIParser::SchemaValidator::StringValidator do
       end
     end
   end
+
+  describe 'validate date format' do
+    subject { OpenAPIParser::SchemaValidator.validate(params, target_schema, options) }
+
+    let(:params) { {} }
+    let(:replace_schema) do
+      {
+        date_str: {
+          type: 'string',
+          format: 'date',
+        },
+      }
+    end
+
+    context 'correct' do
+      let(:params) { { 'date_str' => '2021-02-12' } }
+      it { expect(subject).to eq({ 'date_str' => '2021-02-12' }) }
+    end
+
+    context 'invalid' do
+      context 'error pattern' do
+        let(:value) { 'not_date' }
+        let(:params) { { 'date_str' => value } }
+
+        it do
+          expect { subject }.to raise_error do |e|
+            expect(e).to be_kind_of(OpenAPIParser::InvalidDateFormat)
+            expect(e.message).to end_with("Value: \"not_date\" is not conformant with date format")
+          end
+        end
+      end
+    end
+  end
+
+  describe 'validate date-time format' do
+    subject { OpenAPIParser::SchemaValidator.validate(params, target_schema, options) }
+
+    let(:replace_schema) do
+      {
+        datetime_str: {
+          type: 'string',
+          format: 'date-time',
+        },
+      }
+    end
+
+    context 'correct' do
+      let(:options) { ::OpenAPIParser::SchemaValidator::Options.new(coerce_value: true, datetime_coerce_class: datetime_coerce_class) }
+      let(:params) { { 'datetime_str' => '2022-01-01T12:59:00.000+09:00' } }
+
+      context 'when datetime_coerce_class is nil' do
+        let(:datetime_coerce_class) { nil }
+
+        it 'return String' do
+          expect(subject).to eq({ 'datetime_str' => '2022-01-01T12:59:00.000+09:00' })
+        end
+      end
+
+      context 'when datetime_coerce_class is Time' do
+        let(:datetime_coerce_class) { Time }
+
+        it 'return Time' do
+          expect(subject).to eq({ 'datetime_str' => DateTime.rfc3339('2022-01-01T12:59:00.000+09:00').to_time })
+        end
+      end
+
+      context 'when datetime_coerce_class is DateTime' do
+        let(:datetime_coerce_class) { DateTime }
+
+        it 'return DateTime' do
+          expect(subject).to eq({ 'datetime_str' => DateTime.rfc3339('2022-01-01T12:59:00.000+09:00') })
+        end
+      end
+    end
+
+    context 'invalid' do
+      context 'arbitrary string' do
+        let(:params) { { 'datetime_str' => 'not_date' } }
+
+        it do
+          expect { subject }.to raise_error do |e|
+            expect(e).to be_kind_of(OpenAPIParser::InvalidDateTimeFormat)
+            expect(e.message).to end_with("Value: \"not_date\" is not conformant with date-time format")
+          end
+        end
+      end
+
+      context 'datetime without timezone' do
+        let(:params) { { 'datetime_str' => '2022-01-01T12:59:00.000' } }
+
+        it do
+          expect { subject }.to raise_error do |e|
+            expect(e).to be_kind_of(OpenAPIParser::InvalidDateTimeFormat)
+            expect(e.message).to end_with("Value: \"2022-01-01T12:59:00.000\" is not conformant with date-time format")
+          end
+        end
+      end
+    end
+  end
 end

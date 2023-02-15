@@ -12,6 +12,7 @@ Gem::Specification.new do |spec|
   spec.description   = 'parser for OpenAPI 3.0 or later'
   spec.homepage      = 'https://github.com/ota42y/openapi_parser'
   spec.license       = 'MIT'
+  spec.required_ruby_version = ">= 2.6.0"
 
   # Specify which files should be added to the gem when it is released.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
@@ -24,10 +25,17 @@ Gem::Specification.new do |spec|
 
   spec.add_development_dependency 'bundler', '>= 1.16'
   spec.add_development_dependency 'fincop'
-  spec.add_development_dependency 'pry', '~> 0.12.0'
-  spec.add_development_dependency 'pry-byebug'
+
+  if Gem::Version.create(RUBY_VERSION) < Gem::Version.create("3.2.0")
+    spec.add_development_dependency 'pry', '~> 0.12.0'
+    spec.add_development_dependency 'pry-byebug'
+  end
   spec.add_development_dependency 'rake', '>= 12.3.3'
   spec.add_development_dependency 'rspec', '~> 3.0'
   spec.add_development_dependency 'rspec-parameterized'
   spec.add_development_dependency 'simplecov'
+  spec.add_development_dependency "steep"
+  # for steep 
+  # https://github.com/soutaro/steep/issues/466
+  spec.add_development_dependency "activesupport", '~> 6.0'
 end

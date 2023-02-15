@@ -1,9 +1,7 @@
 # OpenAPI Parser
-[![Build Status](https://travis-ci.org/ota42y/openapi_parser.svg?branch=master)](https://travis-ci.org/ota42y/openapi_parser)
+[![ci](https://github.com/ota42y/openapi_parser/actions/workflows/ci.yaml/badge.svg)](https://github.com/ota42y/openapi_parser/actions/workflows/ci.yaml)
 [![Gem Version](https://badge.fury.io/rb/openapi_parser.svg)](https://badge.fury.io/rb/openapi_parser)
 [![Yard Docs](https://img.shields.io/badge/yard-docs-blue.svg)](https://www.rubydoc.info/gems/openapi_parser)
-[![Maintainability](https://api.codeclimate.com/v1/badges/62bad4bcb3f691d46487/maintainability)](https://codeclimate.com/github/ota42y/openapi_parser/maintainability)
-[![Test Coverage](https://api.codeclimate.com/v1/badges/62bad4bcb3f691d46487/test_coverage)](https://codeclimate.com/github/ota42y/openapi_parser/test_coverage)
 [![Inch CI](https://inch-ci.org/github/ota42y/openapi_parser.svg?branch=master)](https://inch-ci.org/github/ota42y/openapi_parser)
 
 This is OpenAPI3 parser and validator. 
@@ -63,6 +61,33 @@ We support additional type validation.
 |type|format|description|
 |---|---|---|
 |string|uuid|validate uuid string. But we don't check uuid layout|
+
+### Reference Validation on Schema Load
+Invalid references (missing definitions, typos, etc.) can cause validation to fail in runtime,
+and these errors can be difficult to debug (see: https://github.com/ota42y/openapi_parser/issues/29).
+
+Pass the `strict_reference_validation: true` option to detect invalid references.
+An `OpenAPIError::MissingReferenceError` exception will be raised when a reference cannot be resolved.
+
+If the `expand_reference` configuration is explicitly `false` (default is `true`), then
+this configuration has no effect.
+
+DEPRECATION NOTICE: To maintain compatibility with the previous behavior, this version sets `false` as a default.
+This behavior will be changed to `true` in a later version, so you should explicitly pass `strict_reference_validation: false`
+if you wish to keep the old behavior (and please let the maintainers know your use-case for this configuration!).
+
+```ruby
+yaml_file = YAML.load_file('open_api_3/schema_with_broken_references.yml')
+options = {
+  coerce_value: true,
+  datetime_coerce_class: DateTime,
+  # This defaults to false (for now) - passing `true` provides load-time validation of refs
+  strict_reference_validation: true
+}
+
+# Will raise with OpenAPIParser::MissingReferenceError
+OpenAPIParser.parse(yaml_file, options)
+```
 
 ## ToDo
 - correct schema checker
